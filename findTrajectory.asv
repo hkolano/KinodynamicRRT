@@ -8,9 +8,6 @@ function [positions, velocities, sumTorques] = findTrajectory(th_start, th_end, 
     alphaArm = alphaSetup();
     % homog T of end effector in the home configuration
     M_home = [-1 0 0 -.3507; 0 1 0 0; 0 0 -1 0.0262; 0 0 0 1];
-    
-    [th_start, th_end, dth_start, dth_end] = fixinputtypes(th_start, th_end, dth_start, dth_end);
-    
 
 
     %% ---------- Dynamics ----------
@@ -48,7 +45,7 @@ function [positions, velocities, sumTorques] = findTrajectory(th_start, th_end, 
         accelerations(:,i+1) = curr_ddtheta;
     end
     
-    sumTorques = sum(abs(torques*dt), 'all');
+    sumTorques = sum(abs(torques*dt), 'all')
 
 
     %% ---------- Plotting ----------
@@ -113,7 +110,7 @@ function [positions, velocities, sumTorques] = findTrajectory(th_start, th_end, 
         ddtheta_new = dqdot_dt;
     end
 
-    function [parsed_th1, parsed_th2, parsed_dth1, parsed_dth2] = fixinputtypes(th_start, th_end, dth_start, dth_end)
+    function [parsed_th1, parsed_th2, parsed_dth1, parsed_dth2] = parseinputs(th_start, th_end, dth_start, dth_end)
         parsed_th1 = transpose(cell2mat(th_start));
         parsed_th2 = transpose(cell2mat(th_end));
         parsed_dth1 = transpose(cell2mat(dth_start));
