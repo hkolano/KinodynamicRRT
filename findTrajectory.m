@@ -1,8 +1,8 @@
 function [positions, velocities, sumTorques] = findTrajectory(th_start, th_end, dth_start, dth_end, plotting)
 
     % clf;
-    addpath('C:\Users\hkolano\Documents\GitHub\ModernRobotics\packages\MATLAB\mr')
-    close all
+    % Add all subfolders to the path (need to include MR package)
+    addpath(genpath(pwd))
 
     %% Import the arm setup
     alphaArm = alphaSetup();
