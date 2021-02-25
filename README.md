@@ -5,6 +5,8 @@ A repository for the Kinodynamic RRT* team: Hannah, Nidhi, and Akshaya
 
 Purpose: As a project for ROB 534: Sequential Decision Making, apply Kinodynamic RRT* to a 4DOF manipulator system. 
 
+## Dependencies
+The MATLAB portion of this package requires the Robotics Toolbox by Peter Corke. See https://petercorke.com/toolboxes/robotics-toolbox/ for installation instructions. 
 ## Connecting MATLAB
 The dynamics model exists on MATLAB, not in a python script. 
 Therefore, we need to be able to call MATLAB from python. 
