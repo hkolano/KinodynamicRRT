@@ -18,6 +18,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     
     is_valid = 1; % start assuming it's valid
     opt_time = 0;
+    sumTorques = 0;
     
 
     %% ---------- Dynamics ----------
@@ -36,6 +37,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     
     T = 1;
     dt = T/iterations;
+    disp('Finding cost of path.')
 
     for i = 1:iterations
         t = dt*i;
@@ -50,20 +52,21 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         accelerations(:,i+1) = curr_ddtheta;
     end
     
-    is_valid = check_angle_limits()
-    are_vels_valid = check_vel_limits()
+    is_valid = check_angle_limits();
+    are_vels_valid = check_vel_limits();
     
     if is_valid == 1 && are_vels_valid == 1
          sumTorques = sum(abs(torques*dt), 'all');
     elseif is_valid == 1 && are_vels_valid == 0
         while are_vels_valid == 0 && T < 10.1
+            disp('.')
             iterations = iterations+5;
             curr_theta = th_start; curr_dtheta = dth_start;
             reset_vectors(iterations, th_start, dth_start)
             [~, ~, init_torques] = closedFormInverseDynamics(5, th_start, dth_start, ddtheta0, Ftip, g);
             torques(:,1) = init_torques;
 
-            T = T+.5
+            T = T+.5;
             dt = T/iterations;
 
             for i = 1:iterations
@@ -78,16 +81,17 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
                 velocities(:,i+1) = dtheta_new;
                 accelerations(:,i+1) = curr_ddtheta;
             end
-            are_vels_valid = check_vel_limits()
+            are_vels_valid = check_vel_limits();
         end
         if are_vels_valid == 1
-            disp('Velocities finally valid. Time to run:')
+            disp('Velocities in valid range. Time scaling:')
             disp(T)
             sumTorques = sum(abs(torques*dt), 'all');
             opt_time = T;
         else 
-            disp('Could not come to a solution. Reporting invalid path.')
+%             disp('Could not come to a solution. Reporting invalid path.')
             is_valid = 0;
+            sumTorques = 0;
         end
     end
     
@@ -207,8 +211,8 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
             if all(velocities(k,:) > theta_dot_limits(k,1)) && all(velocities(k,:) < theta_dot_limits(k,2))
 %                 disp('ThetaDot within limits')
             else
-                disp('ThetaDot not within limits')
-                disp(k)
+%                 disp('ThetaDot not within limits')
+%                 disp(k)
                 vels_are_valid = 0;
             end
         end
