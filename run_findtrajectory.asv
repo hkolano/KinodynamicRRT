@@ -1,0 +1,28 @@
+% Runs the findTrajectory script
+theta_1 = [0 0 0 0 0].'*pi/180;
+theta_2 = [-45 -70 -100 10 0].'*pi/180;
+dtheta_1 = [0 0 0 0 0].'*pi/180;
+dtheta_2 = [5 -10 -15 -20 0].'*pi/180;
+
+% th1, th2, dth1, dth2, plotting, from_python
+[outputThetas, outputThetaDots, sumTorques] = findTrajectory(theta_1, theta_2, dtheta_1, dtheta_2, 1, 0);
+
+theta_limits = [-175, 175; ...
+    -74.61, 125.89; ...
+    -164.61, 35.39; ...
+    -165, 165; ...
+    -180, 180]*pi/180
+
+theta_dot_limits = [-30, 30; ...
+    -30, 30; ...
+    -30, 30; ...
+    -50, 50; ...
+    -50, 50]*pi/180
+
+for i = 1:4
+    if all(outputThetas(1,:) > theta_limits(1,1)) and all(outpu
+        disp('Theta 1 within lower limits')
+    else
+        disp('Theta 1 not within lower limits')
+    end
+end
