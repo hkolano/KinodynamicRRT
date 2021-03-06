@@ -18,6 +18,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     
     is_valid = 1; % start assuming it's valid
     opt_time = 0;
+    sumTorques = 0;
     
 
     %% ---------- Dynamics ----------
@@ -28,62 +29,36 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     curr_theta = th_start; curr_dtheta = dth_start;
     ddtheta0 = [0; 0; 0; 0; 0];
 
-    iterations = 20;
-    
-    reset_vectors(iterations, th_start, dth_start)
-    [~, ~, init_torques] = closedFormInverseDynamics(5, th_start, dth_start, ddtheta0, Ftip, g);
-    torques(:,1) = init_torques;
-    
+    iterations = 20;    
     T = 1;
-    dt = T/iterations;
-
-    for i = 1:iterations
-        t = dt*i;
-        curr_ddtheta = 6*-2*(5*th1mth2+3*T*dth_start+2*T*dth_end)*t/T^3 + ...
-            12*(15*th1mth2+8*T*dth_start + 7*T*dth_end)*t^2/T^4 + ...
-            20*-3*(2*th1mth2+ T*dth_start + T*dth_end)*t^3/T^5;
-        [theta_new, dtheta_new, ~, taulist] = step_dynamics_forward(curr_theta, curr_dtheta, curr_ddtheta, Ftip, g, dt);
-        curr_theta = theta_new; curr_dtheta = dtheta_new; 
-        torques(:,i+1) = taulist;
-        positions(:,i+1) = theta_new;
-        velocities(:,i+1) = dtheta_new;
-        accelerations(:,i+1) = curr_ddtheta;
-    end
-    
-    is_valid = check_angle_limits()
-    are_vels_valid = check_vel_limits()
+    disp('Finding intial trajectory')
+    [traj1poses, traj1vels] = find_path(T, iterations, th_start, th_end, dth_start, dth_end);
+      
+    is_valid = check_angle_limits(traj1poses);
+    are_vels_valid = check_vel_limits(traj1vels);
     
     if is_valid == 1 && are_vels_valid == 1
-         sumTorques = sum(abs(torques*dt), 'all');
+        find_cost(T, iterations, th_start, th_end, dth_start, dth_end)
+        sumTorques = sum(abs(torques*T/iterations), 'all');
     elseif is_valid == 1 && are_vels_valid == 0
         while are_vels_valid == 0 && T < 10.1
-            iterations = iterations+5;
-            curr_theta = th_start; curr_dtheta = dth_start;
-            reset_vectors(iterations, th_start, dth_start)
-            [~, ~, init_torques] = closedFormInverseDynamics(5, th_start, dth_start, ddtheta0, Ftip, g);
-            torques(:,1) = init_torques;
-
-            T = T+.5
-            dt = T/iterations;
-
-            for i = 1:iterations
-                t = dt*i;
-                curr_ddtheta = 6*-2*(5*th1mth2+3*T*dth_start+2*T*dth_end)*t/T^3 + ...
-                    12*(15*th1mth2+8*T*dth_start + 7*T*dth_end)*t^2/T^4 + ...
-                    20*-3*(2*th1mth2+ T*dth_start + T*dth_end)*t^3/T^5;
-                [theta_new, dtheta_new, ~, taulist] = step_dynamics_forward(curr_theta, curr_dtheta, curr_ddtheta, Ftip, g, dt);
-                curr_theta = theta_new; curr_dtheta = dtheta_new; 
-                torques(:,i+1) = taulist;
-                positions(:,i+1) = theta_new;
-                velocities(:,i+1) = dtheta_new;
-                accelerations(:,i+1) = curr_ddtheta;
-            end
-            are_vels_valid = check_vel_limits()
+%             disp('.')
+            T = T+.05;
+            iterations = iterations+1;
+            [~, next_vels] = find_path(T, iterations, th_start, th_end, dth_start, dth_end);
+            are_vels_valid = check_vel_limits(next_vels);
         end
-        if are_vels_valid
-        disp('Velocities finally valid. Time to run:')
-        disp(T)
-        sumTorques = sum(abs(torques*dt), 'all');
+        if are_vels_valid == 1
+            disp('Velocities in valid range. Time scaling:')
+            disp(T)
+            find_cost(T, iterations, th_start, th_end, dth_start, dth_end)
+            sumTorques = sum(abs(torques*T/iterations), 'all');
+            opt_time = T;
+        else 
+            disp('Could not come to a solution. Reporting invalid path.')
+            is_valid = 0;
+            sumTorques = 0;
+        end
     end
     
     
@@ -168,7 +143,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         accelerations(:,1) = ddtheta0; 
     end
 
-    function angles_are_valid = check_angle_limits()
+    function angles_are_valid = check_angle_limits(thetas)
         angles_are_valid = 1; % assume angles are valid
         theta_limits = [-175, 175; ...
         -74.61, 125.89; ...
@@ -179,7 +154,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         for j = 1:4
 %             disp('Checking joint')
 %             disp(j)
-            if all(positions(j,:) > theta_limits(j,1)) && all(positions(j,:) < theta_limits(j,2))
+            if all(thetas(j,:) > theta_limits(j,1)) && all(thetas(j,:) < theta_limits(j,2))
 %                 disp('Theta within limits')
             else
 %                 disp('Theta not within limits')
@@ -188,7 +163,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         end
     end
 
-    function vels_are_valid = check_vel_limits()
+    function vels_are_valid = check_vel_limits(vels)
         vels_are_valid = 1;
         theta_dot_limits = [-30, 30; ...
             -30, 30; ...
@@ -199,15 +174,55 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         for k = 1:4
 %             disp('Checking joint velocities')
 %             disp(k)
-            if all(velocities(k,:) > theta_dot_limits(k,1)) && all(velocities(k,:) < theta_dot_limits(k,2))
+            if all(vels(k,:) > theta_dot_limits(k,1)) && all(vels(k,:) < theta_dot_limits(k,2))
 %                 disp('ThetaDot within limits')
             else
-                disp('ThetaDot not within limits')
-                disp(k)
+%                 disp('ThetaDot not within limits')
+%                 disp(k)
                 vels_are_valid = 0;
             end
         end
     end
 
+    function [est_poses, est_vels] = find_path(T, iterations, th_start, th_end, dth_start, dth_end)
+        dt1 = T/iterations;
+        est_vels = zeros([5, iterations]);
+        est_vels(:,1) = dth_start;
+        est_poses = zeros([5, iterations]);
+        est_poses(:,1) = th_start;
+
+        for i = 1:iterations
+            t = dt1*i;
+            est_theta = th_start + dth_start*t - (3*t^5*(2*th_start - 2*th_end + T*dth_start + T*dth_end))/T^5 - ...
+                (2*t^3*(5*th_start - 5*th_end + 3*T*dth_start + 2*T*dth_end))/T^3 + ...
+                (t^4*(15*th_start - 15*th_end + 8*T*dth_start + 7*T*dth_end))/T^4;
+            est_poses(:, i+1) = est_theta;
+            est_dtheta = dth_start - (15*t^4*(2*th_start - 2*th_end + T*dth_start + T*dth_end))/T^5 - ...
+                (6*t^2*(5*th_start - 5*th_end + 3*T*dth_start + 2*T*dth_end))/T^3 + ...
+                (4*t^3*(15*th_start - 15*th_end + 8*T*dth_start + 7*T*dth_end))/T^4;
+            est_vels(:, i+1) = est_dtheta;
+        end
+    end
+
+    function find_cost(T, iterations, th_start, th_end, dth_start, dth_end)
+            curr_theta = th_start; curr_dtheta = dth_start;
+            reset_vectors(iterations, th_start, dth_start)
+            [~, ~, init_torques] = closedFormInverseDynamics(5, th_start, dth_start, ddtheta0, Ftip, g);
+            torques(:,1) = init_torques;
+            dt2 = T/iterations;
+
+            for i = 1:iterations
+                t = dt2*i;
+                curr_ddtheta = 6*-2*(5*th1mth2+3*T*dth_start+2*T*dth_end)*t/T^3 + ...
+                    12*(15*th1mth2+8*T*dth_start + 7*T*dth_end)*t^2/T^4 + ...
+                    20*-3*(2*th1mth2+ T*dth_start + T*dth_end)*t^3/T^5;
+                [theta_new, dtheta_new, ~, taulist] = step_dynamics_forward(curr_theta, curr_dtheta, curr_ddtheta, Ftip, g, dt2);
+                curr_theta = theta_new; curr_dtheta = dtheta_new; 
+                torques(:,i+1) = taulist;
+                positions(:,i+1) = theta_new;
+                velocities(:,i+1) = dtheta_new;
+                accelerations(:,i+1) = curr_ddtheta;
+            end
+    end
 end
 
