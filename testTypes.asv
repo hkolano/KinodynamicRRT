@@ -1,0 +1,12 @@
+% Testing types sent from Python 
+
+function output = testTypes(list1)
+
+list1
+output = 1;
+
+    function parsed_list = parselist(list)
+        for cell in list:
+    end
+
+end 
