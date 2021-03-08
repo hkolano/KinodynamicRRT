@@ -17,7 +17,7 @@ class KinoPlanner:
         print("Initializing Planner.")
         self.eng = self.init_matlab()
         print("MATLAB instance initialized.")
-        self.test_interpolation()
+        # self.test_interpolation()
 
     @staticmethod
     def init_matlab():
