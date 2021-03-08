@@ -66,6 +66,7 @@ class krrt:
         self.existing_states = {}
         self.curr_state = None
         self.prev_state = None
+        self.planner=KinoPlanner()
 
 
     def rrtstar_cost(self, parent_state, new_state, v1, v2):
@@ -75,7 +76,7 @@ class krrt:
         par_vstate = np.array(v1.split(',')).astype(np.float)
         curr_vstate = np.array(v2.split(',')).astype(np.float)
         cost = sum(np.absolute(np.subtract(curr_state,par_state))) + sum(np.absolute(np.subtract(curr_vstate,par_vstate)))
-        # print('cost: ', cost)
+        print('rrt cost: ', cost)
         return cost
         # test()
 
@@ -86,16 +87,26 @@ class krrt:
         par_state = np.array(parent_state.split(',')).astype(np.float)
         curr_state = np.array(new_state.split(',')).astype(np.float)
         # print ('extract float states: ', prev_state, curr_state)
-
+        par_state=np.append(par_state,0.0)
+        curr_state=np.append(curr_state,0.0)
+        par_state=par_state.tolist()
+        curr_state=curr_state.tolist()
         # Array of parrent velocity in theta_dot(rad/secs)
         par_vstate = np.array(v1.split(',')).astype(np.float)
         curr_vstate = np.array(v2.split(',')).astype(np.float)
-
+        par_vstate=np.append(par_vstate,0.0)
+        curr_vstate=np.append(curr_vstate,0.0)
+        par_vstate=par_vstate.tolist()
+        curr_vstate=curr_vstate.tolist()
+        print("states in the cost function", par_state,curr_state,curr_vstate,par_vstate)
         ############ Add the code for cost below. You can call Hannah's cost function here
 
+        cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+        #print("krrt cost = ",cost)
         ## Sample cost from rrtstar
+        #cost=planner.get_path_torque_matlab([0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 2.0, 3.0, 2.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0, 1.0], 1)
         #cost = sum(np.absolute(np.subtract(curr_state,par_state))) + sum(np.absolute(np.subtract(curr_vstate,par_vstate)))
-        # print('cost: ', cost)
+        #print('krrt cost: ', cost)
         return cost
 
     def rrtstar_algorithm(self, cspace_obj):
@@ -220,8 +231,8 @@ class krrt:
                 velocity = new_vel_state
                 self.existing_states[self.curr_state] ={
                                                         'parent':cspace_obj.start_state,
-                                                        'cost_p':self.rrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity),
-                                                        'cost_tot':self.rrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity),
+                                                        'cost_p':self.krrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity),
+                                                        'cost_tot':self.krrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity),
                                                         'vel':velocity
                 }
                 #print('self.existing_states: ',self.existing_states)
@@ -238,8 +249,10 @@ class krrt:
                     velocity = new_vel_state
 
                 for key, value in self.existing_states.items():
-                    pot_parrent[key] = self.rrtstar_cost(key, self.curr_state,
+                    print('finding pot parents: ')
+                    pot_parrent[key] = self.krrtstar_cost(key, self.curr_state,
                                                         v1=self.existing_states[key]['vel'], v2 = velocity)
+                print('finding pot parents done: ')
                 parent = min(pot_parrent, key = pot_parrent.get)
                 self.existing_states[self.curr_state] ={
                                                         'parent':parent,
@@ -249,9 +262,11 @@ class krrt:
                 }
                 # pot_cost = {}
                 for key, value in self.existing_states.items():
-                    pot_cost = self.existing_states[self.curr_state]['cost_p'] + self.rrtstar_cost(key, self.curr_state,
+                    print('cost parents')
+                    pot_cost = self.existing_states[self.curr_state]['cost_p'] + self.krrtstar_cost(key, self.curr_state,
                                                                                                  v1 = self.existing_states[key]['vel'],
                                                                                                  v2 = self.existing_states[self.curr_state]['vel'])
+                    print('cost parents done')
                     all_parents = []
                     temp_curr_state = self.curr_state
                     while temp_curr_state != cspace_obj.start_state:
@@ -264,13 +279,15 @@ class krrt:
                     (self.existing_states[self.curr_state]['parent'] != key) and
                     (key not in all_parents)):
                        self.existing_states[key]['parent'] = self.curr_state
-                       self.existing_states[key]['cost_p'] = self.rrtstar_cost(key, self.curr_state,
+                       print('rewiring parents')
+                       self.existing_states[key]['cost_p'] = self.krrtstar_cost(key, self.curr_state,
                                                                             v1 = self.existing_states[key]['vel'],
                                                                             v2 = self.existing_states[self.curr_state]['vel'])
+                       print('rewiring parents done')
                        self.existing_states[key]['cost_tot'] = pot_cost
                 # print('self.existing_states: ',self.existing_states)
                 # print("start state",cspace_obj.start_state)
-
+        print('finding path')
         # find path
         path = []
         curr_state = cspace_obj.goal_state
