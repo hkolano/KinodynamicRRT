@@ -266,16 +266,21 @@ class krrt:
                                                             'vel':velocity
                     }
                     # pot_cost = {}
+
+
+                    ##### rewiring #######
                     for key, value in self.existing_states.items():
                         #print('cost parents')
                         pot_cost = 0
-                        valid, temp_cost = self.krrtstar_cost(key, self.curr_state,v1 = self.existing_states[key]['vel'], v2 = self.existing_states[self.curr_state]['vel'])
+                        valid, temp_cost = self.krrtstar_cost( self.curr_state, key, v2 = self.existing_states[self.curr_state]['vel'], v1 = self.existing_states[key]['vel'])
 
                         if valid == 1:
-                            pot_cost = self.existing_states[self.curr_state]['cost_p'] + temp_cost
+                            #### mid night changes
+                            # pot_cost = self.existing_states[self.curr_state]['cost_p'] + temp_cost
+                            pot_cost = self.existing_states[self.curr_state]['cost_tot'] + temp_cost
 
                         if pot_cost!=0:
-                            print('cost parents done')
+                            # print('cost parents done')
                             all_parents = []
                             temp_curr_state = self.curr_state
                             while temp_curr_state != cspace_obj.start_state:
