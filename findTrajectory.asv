@@ -34,13 +34,14 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     disp('Finding intial trajectory')
     [traj1poses, traj1vels] = find_path(T, iterations, th_start, th_end, dth_start, dth_end);
       
-    is_valid = check_angle_limits(traj1poses);
-    are_vels_valid = check_vel_limits(traj1vels);
+    is_valid = check_angle_limits(traj1poses)
+    are_vels_valid = check_vel_limits(traj1vels)
     
     if is_valid == 1 && are_vels_valid == 1
         find_cost(T, iterations, th_start, th_end, dth_start, dth_end)
         sumTorques = sum(abs(torques*T/iterations), 'all');
-    elseif is_valid == 1 && are_vels_valid == 0
+    else
+%     elseif is_valid == 1 && are_vels_valid == 0
         while are_vels_valid == 0 && T < 10.1
 %             disp('.')
             T = T+.05;
@@ -55,9 +56,12 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
             sumTorques = sum(abs(torques*T/iterations), 'all');
             opt_time = T;
         else 
-            disp('Could not come to a solution. Reporting invalid path.')
+            disp('Could not come to a solution. Reporting invalid path, using longest time step')
             is_valid = 0;
-            sumTorques = 0;
+%             sumTorques = 0;
+            find_cost(T, iterations, th_start, th_end, dth_start, dth_end)
+            sumTorques = sum(abs(torques*T/iterations), 'all');
+            opt_time = T;
         end
     end
     
@@ -65,7 +69,8 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     %% ---------- Plotting ----------
     if plotting == 1
         % Show the arm graphically
-        alphaArm.plot(positions.', 'jointdiam', 1.5, 'jvec', 'nobase');
+        figure
+        alphaArm.plot(traj1poses.', 'jointdiam', 1.5, 'jvec', 'nobase');
         hold on
 
         % plot the base in the correct orientation
@@ -73,44 +78,45 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         surf(Z*.25, Y, X, 'FaceColor', 'k');
 
         figure 
-        plot(0:dt:dt*iterations, positions(1,:))
+        plot(0:T/iterations:T, traj1poses(1,:))
         hold on
-        plot(0:dt:dt*iterations, positions(2,:))
-        plot(0:dt:dt*iterations, positions(3,:))
-        plot(0:dt:dt*iterations, positions(4,:))
+        plot(0:T/iterations:T, traj1poses(2,:))
+        plot(0:T/iterations:T, traj1poses(3,:))
+        plot(0:T/iterations:T, traj1poses(4,:))
         xlabel('Time (s)')
         ylabel('Joint Angle (theta)') 
         legend('Joint E', 'Joint D', 'Joint C', 'Joint B')
 
         figure 
-        plot(0:dt:dt*iterations, velocities(1,:))
+        plot(0:T/iterations:T, traj1vels(1,:))
         hold on
-        plot(0:dt:dt*iterations, velocities(2,:))
-        plot(0:dt:dt*iterations, velocities(3,:))
-        plot(0:dt:dt*iterations, velocities(4,:))
+        plot(0:T/iterations:T, traj1vels(2,:))
+        plot(0:T/iterations:T, traj1vels(3,:))
+        plot(0:T/iterations:T, traj1vels(4,:))
         xlabel('Time (s)')
         ylabel('Joint Velocities (d_theta)') 
         legend('Joint E', 'Joint D', 'Joint C', 'Joint B')
 
-        figure 
-        plot(0:dt:dt*iterations, accelerations(1,:))
-        hold on
-        plot(0:dt:dt*iterations, accelerations(2,:))
-        plot(0:dt:dt*iterations, accelerations(3,:))
-        plot(0:dt:dt*iterations, accelerations(4,:))
-        xlabel('Time (s)')
-        ylabel('Joint Accelerations (d_d_theta)') 
-        legend('Joint E', 'Joint D', 'Joint C', 'Joint B')
+%         figure 
+%         plot(0:dt:dt*iterations, accelerations(1,:))
+%         hold on
+%         plot(0:dt:dt*iterations, accelerations(2,:))
+%         plot(0:dt:dt*iterations, accelerations(3,:))
+%         plot(0:dt:dt*iterations, accelerations(4,:))
+%         xlabel('Time (s)')
+%         ylabel('Joint Accelerations (d_d_theta)') 
+%         legend('Joint E', 'Joint D', 'Joint C', 'Joint B')
 
-        figure 
-        plot(0:dt:dt*iterations, torques(1,:))
-        hold on
-        plot(0:dt:dt*iterations, torques(2,:))
-        plot(0:dt:dt*iterations, torques(3,:))
-        plot(0:dt:dt*iterations, torques(4,:))
-        xlabel('Time (s)')
-        ylabel('Torque (Nm)') 
-        legend('Joint E', 'Joint D', 'Joint C', 'Joint B')
+        disp(torques)
+%         figure 
+%         plot(0:T/iterations:T, torques(1,:))
+%         hold on
+%         plot(0:T/iterations:T, torques(2,:))
+%         plot(0:T/iterations:T, torques(3,:))
+%         plot(0:T/iterations:T, torques(4,:))
+%         xlabel('Time (s)')
+%         ylabel('Torque (Nm)') 
+%         legend('Joint E', 'Joint D', 'Joint C', 'Joint B')
     end
 
     %% ---------- Dynamics iterator ---------
@@ -152,12 +158,12 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
         -180, 180]*pi/180;
 
         for j = 1:4
-%             disp('Checking joint')
-%             disp(j)
+            disp('Checking joint')
+            disp(j)
             if all(thetas(j,:) > theta_limits(j,1)) && all(thetas(j,:) < theta_limits(j,2))
-%                 disp('Theta within limits')
+                disp('Theta within limits')
             else
-%                 disp('Theta not within limits')
+                disp('Theta not within limits')
                 angles_are_valid = 0;   
             end
         end
