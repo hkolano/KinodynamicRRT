@@ -35,7 +35,7 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
     [traj1poses, traj1vels] = find_path(T, iterations, th_start, th_end, dth_start, dth_end);
       
     is_valid = check_angle_limits(traj1poses)
-    are_vels_valid = check_vel_limits(traj1vels)
+    are_vels_valid = check_vel_limits(traj1vels);
     
     if is_valid == 1 && are_vels_valid == 1
         find_cost(T, iterations, th_start, th_end, dth_start, dth_end)
@@ -171,11 +171,12 @@ function [is_valid, opt_time, sumTorques] = findTrajectory(th_start, th_end, dth
 
         for j = 1:4
 %             disp('Checking joint')
-%             disp(j)
+            disp(j)
             if all(thetas(j,:) > theta_limits(j,1)) && all(thetas(j,:) < theta_limits(j,2))
 %                 disp('Theta within limits')
             else
 %                 disp('Theta not within limits')
+%                 disp(thetas(j,:))
                 angles_are_valid = 0;   
             end
         end
