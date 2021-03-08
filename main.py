@@ -12,22 +12,22 @@ def trans(a,d,alpha,theta_offset,theta):
     return t
 
 if __name__=='__main__':
-    # obj =cspace()
-    # print(obj.cspace, obj.cvspace, obj.start_state, obj.goal_state)
-    # print('print new state: ', obj.get_new_state(['[2.2513282020545375, 1.394223646582816, 1.2991342648614268, 2.0174834179563006]', '[0.25411404487791694, 1.481987633854952, 2.2628142142188703, 0.32861234967968894]']))
+    obj =cspace()
+    print(obj.cspace, obj.cvspace, obj.start_state, obj.goal_state)
+    print('print new state: ', obj.get_new_state(['[2.2513282020545375, 1.394223646582816, 1.2991342648614268, 2.0174834179563006]', '[0.25411404487791694, 1.481987633854952, 2.2628142142188703, 0.32861234967968894]']))
 
-    # obj_krrt = krrt()
-    # # obj_krrt.test(obj)
-    # rrtstar_path, rrt_cost, all_states = obj_krrt.rrtstar_algorithm(obj)
-    # print('rrtstar path: ',rrtstar_path)
-    # print('rrtstar cost: ', rrt_cost)
-    # print('rrtstar all_states', all_states)
-    #
-    # # obj_krrt.krrtstar_algorithm(obj, all_states)
-    # krrtstar_path, krrt_cost, _pv = obj_krrt.krrtstar_algorithm(obj, all_states)
-    # print('krrtstar path: ',krrtstar_path)
-    # print('krrtstar cost: ', krrt_cost)
-    # print('pv: ',_pv)
+    obj_krrt = krrt()
+    # obj_krrt.test(obj)
+    rrtstar_path, rrt_cost, all_states = obj_krrt.rrtstar_algorithm(obj)
+    print('rrtstar path: ',rrtstar_path)
+    print('rrtstar cost: ', rrt_cost)
+    print('rrtstar all_states', all_states)
+
+    # obj_krrt.krrtstar_algorithm(obj, all_states)
+    krrtstar_path, krrt_cost, _pv = obj_krrt.krrtstar_algorithm(obj, all_states)
+    print('krrtstar path: ',krrtstar_path)
+    print('krrtstar cost: ', krrt_cost)
+    print('pv: ',_pv)
 
 
 
