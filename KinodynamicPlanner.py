@@ -17,7 +17,7 @@ class KinoPlanner:
         print("Initializing Planner.")
         self.eng = self.init_matlab()
         print("MATLAB instance initialized.")
-        self.test_interpolation()
+        # self.test_interpolation()
 
     @staticmethod
     def init_matlab():
@@ -34,7 +34,7 @@ class KinoPlanner:
         Calls the MATLAB script findTrajectory.m
         :returns: A sum of the torque required to traverse that path in a quintic trajectory
         '''
-        [_, _, torque_sum] = self.eng.findTrajectory(th_start, th_end, dth_start, dth_end, plotting, nargout = 3)
+        [is_valid, time_scale, torque_sum] = self.eng.findTrajectory(th_start, th_end, dth_start, dth_end, plotting, 1, nargout = 3)
         return torque_sum
 
     def get_path_torque_random(self, th_start, th_end, dth_start, dth_end):

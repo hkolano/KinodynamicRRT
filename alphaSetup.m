@@ -6,8 +6,6 @@ Last modified by Hannah Kolano 1/5/2021
 
 function alphaArm = alphaSetup()
 
-    clf;
-
     %% Kinematics
     theta_a = atan2(145.3, 40);
     % dhparams in order: [a alpha d theta]
