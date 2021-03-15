@@ -67,6 +67,7 @@ class krrt:
         self.curr_state = None
         self.prev_state = None
         self.planner=KinoPlanner()
+        self.r = 7 # some arbitrary value
 
 
     def rrtstar_cost(self, parent_state, new_state, v1, v2):
@@ -100,8 +101,12 @@ class krrt:
         curr_vstate=curr_vstate.tolist()
         # print("states in the cost function", par_state,curr_state,curr_vstate,par_vstate)
         ############ Add the code for cost below. You can call Hannah's cost function here
-
-        valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+        dummycost = self.rrtstar_cost(parent_state, new_state, v1, v2)
+        if dummycost < self.r:
+            valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+        else:
+            valid_status = 0
+            cost = 100
         #print("krrt cost = ",cost)
         ## Sample cost from rrtstar
         #cost=planner.get_path_torque_matlab([0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 2.0, 3.0, 2.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0, 1.0], 1)
