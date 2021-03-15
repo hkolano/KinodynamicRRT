@@ -41,7 +41,7 @@ class cspace:
                 self.theta_lim[str(i)]['max']),2)))
             cspace_states.append(",".join(new_state))
 
-        for idx in range(0,5):
+        for idx in range(0,10):
             new_vstate=[]
             for i in range(0,4):
                 new_vstate.append(str(round(random.uniform(0,
@@ -76,7 +76,7 @@ class krrt:
         par_vstate = np.array(v1.split(',')).astype(np.float)
         curr_vstate = np.array(v2.split(',')).astype(np.float)
         cost = sum(np.absolute(np.subtract(curr_state,par_state))) + sum(np.absolute(np.subtract(curr_vstate,par_vstate)))
-        print('rrt cost: ', cost)
+        # print('rrt cost: ', cost)
         return cost
         # test()
 
@@ -98,16 +98,16 @@ class krrt:
         curr_vstate=np.append(curr_vstate,0.0)
         par_vstate=par_vstate.tolist()
         curr_vstate=curr_vstate.tolist()
-        print("states in the cost function", par_state,curr_state,curr_vstate,par_vstate)
+        # print("states in the cost function", par_state,curr_state,curr_vstate,par_vstate)
         ############ Add the code for cost below. You can call Hannah's cost function here
 
-        cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+        valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
         #print("krrt cost = ",cost)
         ## Sample cost from rrtstar
         #cost=planner.get_path_torque_matlab([0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 2.0, 3.0, 2.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0, 1.0], 1)
         #cost = sum(np.absolute(np.subtract(curr_state,par_state))) + sum(np.absolute(np.subtract(curr_vstate,par_vstate)))
         #print('krrt cost: ', cost)
-        return cost
+        return int(valid_status), cost
 
     def rrtstar_algorithm(self, cspace_obj):
         self.curr_state=cspace_obj.start_state
@@ -229,12 +229,14 @@ class krrt:
             # print("start and goal state",cspace_obj.start_state, cspace_obj.goal_state)
             if len(self.existing_states)==0:
                 velocity = new_vel_state
-                self.existing_states[self.curr_state] ={
-                                                        'parent':cspace_obj.start_state,
-                                                        'cost_p':self.krrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity),
-                                                        'cost_tot':self.krrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity),
-                                                        'vel':velocity
-                }
+                valid, temp_cost = self.krrtstar_cost(cspace_obj.start_state,self.curr_state,'0.0,0.0,0.0,0.0',velocity)
+                if valid == 1:
+                    self.existing_states[self.curr_state] ={
+                                                            'parent':cspace_obj.start_state,
+                                                            'cost_p':temp_cost,
+                                                            'cost_tot':temp_cost,
+                                                            'vel':velocity
+                    }
                 #print('self.existing_states: ',self.existing_states)
                 #print("start state",cspace_obj.start_state)
             else:
@@ -249,45 +251,55 @@ class krrt:
                     velocity = new_vel_state
 
                 for key, value in self.existing_states.items():
-                    print('finding pot parents: ')
-                    pot_parrent[key] = self.krrtstar_cost(key, self.curr_state,
+                    # print('finding pot parents: ')
+                    valid, temp_cost = self.krrtstar_cost(key, self.curr_state,
                                                         v1=self.existing_states[key]['vel'], v2 = velocity)
-                print('finding pot parents done: ')
-                parent = min(pot_parrent, key = pot_parrent.get)
-                self.existing_states[self.curr_state] ={
-                                                        'parent':parent,
-                                                        'cost_p':pot_parrent[parent],
-                                                        'cost_tot':self.existing_states[parent]['cost_tot'] + pot_parrent[parent],
-                                                        'vel':velocity
-                }
-                # pot_cost = {}
-                for key, value in self.existing_states.items():
-                    print('cost parents')
-                    pot_cost = self.existing_states[self.curr_state]['cost_p'] + self.krrtstar_cost(key, self.curr_state,
-                                                                                                 v1 = self.existing_states[key]['vel'],
-                                                                                                 v2 = self.existing_states[self.curr_state]['vel'])
-                    print('cost parents done')
-                    all_parents = []
-                    temp_curr_state = self.curr_state
-                    while temp_curr_state != cspace_obj.start_state:
-                        prev_state = temp_curr_state
-                        temp_curr_state = self.existing_states[prev_state]['parent']
-                        all_parents.append(temp_curr_state)
+                    if valid == 1:
+                        pot_parrent[key] = temp_cost
+                # print('finding pot parents done: ')
+                if len(pot_parrent)>=1:
+                    parent = min(pot_parrent, key = pot_parrent.get)
+                    self.existing_states[self.curr_state] ={
+                                                            'parent':parent,
+                                                            'cost_p':pot_parrent[parent],
+                                                            'cost_tot':self.existing_states[parent]['cost_tot'] + pot_parrent[parent],
+                                                            'vel':velocity
+                    }
+                    # pot_cost = {}
 
-                    if (pot_cost < value['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
-                    (self.curr_state!=key) and (self.curr_state!=cspace_obj.goal_state) and
-                    (self.existing_states[self.curr_state]['parent'] != key) and
-                    (key not in all_parents)):
-                       self.existing_states[key]['parent'] = self.curr_state
-                       print('rewiring parents')
-                       self.existing_states[key]['cost_p'] = self.krrtstar_cost(key, self.curr_state,
-                                                                            v1 = self.existing_states[key]['vel'],
-                                                                            v2 = self.existing_states[self.curr_state]['vel'])
-                       print('rewiring parents done')
-                       self.existing_states[key]['cost_tot'] = pot_cost
+
+                    ##### rewiring #######
+                    for key, value in self.existing_states.items():
+                        #print('cost parents')
+                        pot_cost = 0
+                        valid, temp_cost = self.krrtstar_cost( self.curr_state, key, v2 = self.existing_states[self.curr_state]['vel'], v1 = self.existing_states[key]['vel'])
+
+                        if valid == 1:
+                            #### mid night changes
+                            # pot_cost = self.existing_states[self.curr_state]['cost_p'] + temp_cost
+                            pot_cost = self.existing_states[self.curr_state]['cost_tot'] + temp_cost
+
+                        if pot_cost!=0:
+                            # print('cost parents done')
+                            all_parents = []
+                            temp_curr_state = self.curr_state
+                            while temp_curr_state != cspace_obj.start_state:
+                                prev_state = temp_curr_state
+                                temp_curr_state = self.existing_states[prev_state]['parent']
+                                all_parents.append(temp_curr_state)
+
+                            if (pot_cost < value['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
+                            (self.curr_state!=key) and (self.curr_state!=cspace_obj.goal_state) and
+                            (self.existing_states[self.curr_state]['parent'] != key) and
+                            (key not in all_parents)):
+                               self.existing_states[key]['parent'] = self.curr_state
+                               # print('rewiring parents')
+                               self.existing_states[key]['cost_p'] = temp_cost
+                               # print('rewiring parents done')
+                               self.existing_states[key]['cost_tot'] = pot_cost
                 # print('self.existing_states: ',self.existing_states)
                 # print("start state",cspace_obj.start_state)
-        print('finding path')
+        # print('finding path')
         # find path
         path = []
         curr_state = cspace_obj.goal_state
