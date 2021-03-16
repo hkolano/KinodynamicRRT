@@ -54,6 +54,7 @@ class cspace:
         not_sampled_states = [x for x in self.cspace
                                 if (x not in existing_states) and
                                 (x != self.start_state)]
+        # print(len(not_sampled_states))
         return np.random.choice(not_sampled_states)
 
     def get_new_vstate(self):
@@ -67,7 +68,10 @@ class krrt:
         self.curr_state = None
         self.prev_state = None
         self.planner=KinoPlanner()
-        self.r = 7 # some arbitrary value
+
+        # Number of n neighbors considered
+        self.n_neighbors = 5
+        # self.r = 7 # some arbitrary value
 
 
     def rrtstar_cost(self, parent_state, new_state, v1, v2):
@@ -101,13 +105,16 @@ class krrt:
         curr_vstate=curr_vstate.tolist()
         # print("states in the cost function", par_state,curr_state,curr_vstate,par_vstate)
         ############ Add the code for cost below. You can call Hannah's cost function here
-        dummycost = self.rrtstar_cost(parent_state, new_state, v1, v2)
-        if dummycost < self.r:
-            valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
-        else:
-            valid_status = 0
-            cost = 100
+        # dummycost = self.rrtstar_cost(parent_state, new_state, v1, v2)
+        # if dummycost < self.r:
+        #     valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+        # else:
+        #     valid_status = 0
+        #     cost = 100
         #print("krrt cost = ",cost)
+
+        valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+
         ## Sample cost from rrtstar
         #cost=planner.get_path_torque_matlab([0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 2.0, 3.0, 2.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0, 1.0], 1)
         #cost = sum(np.absolute(np.subtract(curr_state,par_state))) + sum(np.absolute(np.subtract(curr_vstate,par_vstate)))
@@ -126,7 +133,18 @@ class krrt:
         # }
 
         # print("start and goal state",cspace_obj.start_state, cspace_obj.goal_state)
-        while self.curr_state != cspace_obj.goal_state:
+        # while self.curr_state != cspace_obj.goal_state: (self.curr_state != cspace_obj.goal_state) or
+        count = 1
+        num = 20
+
+        # TODO: check this status expression
+        status = not ((self.curr_state != cspace_obj.goal_state) and not (count<num)) or (not (self.curr_state != cspace_obj.goal_state) and (count<num))
+
+        while status:
+            status = not ((self.curr_state != cspace_obj.goal_state) and not (count<num)) or (not (self.curr_state != cspace_obj.goal_state) and (count<num))
+
+            print(count, status)
+            count = count + 1
             self.curr_state = cspace_obj.get_new_state(self.existing_states)
             # print('self.existing_states: ',self.existing_states)
             # print("start and goal state",cspace_obj.start_state, cspace_obj.goal_state)
@@ -147,6 +165,7 @@ class krrt:
                 pot_parrent = {}
 
                 if self.curr_state==cspace_obj.goal_state:
+                    print('goal met')
                     velocity = '0.0,0.0,0.0,0.0'
                 else:
                     velocity = cspace_obj.get_new_vstate()
@@ -173,9 +192,12 @@ class krrt:
                         temp_curr_state = self.existing_states[prev_state]['parent']
                         all_parents.append(temp_curr_state)
 
+                    # if (pot_cost < value['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
+                    # (self.curr_state!=key) and (self.curr_state!=cspace_obj.goal_state) and
+                    # (self.existing_states[self.curr_state]['parent'] != key) and
+                    # (key not in all_parents)):
                     if (pot_cost < value['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
-                    (self.curr_state!=key) and (self.curr_state!=cspace_obj.goal_state) and
-                    (self.existing_states[self.curr_state]['parent'] != key) and
+                    (self.curr_state!=key) and (self.existing_states[self.curr_state]['parent'] != key) and
                     (key not in all_parents)):
                        self.existing_states[key]['parent'] = self.curr_state
                        self.existing_states[key]['cost_p'] = self.rrtstar_cost(key, self.curr_state,
@@ -211,6 +233,7 @@ class krrt:
             path.append(curr_state_str)
         # print("the beautiful path ",path)
         # print('existing_states: ', self.existing_states)
+        # print('count: ', count)
         return path, self.existing_states[cspace_obj.goal_state]['cost_tot'], pv_states
 
 
@@ -255,7 +278,21 @@ class krrt:
                 else:
                     velocity = new_vel_state
 
-                for key, value in self.existing_states.items():
+                # Find top n nearest vertexes:
+                near_states = []
+                if len(self.existing_states)<=self.n_neighbors:
+                    near_states = list(self.existing_states.keys())
+                    # print('near_states: ', near_states)
+                else:
+                    tmp_states = {}
+                    for key, value in self.existing_states.items():
+                        tmp_states[key] = self.rrtstar_cost(key, self.curr_state,
+                                                            v1=self.existing_states[key]['vel'], v2 = velocity)
+                    near_states =  list(dict(sorted(tmp_states.items(), key = lambda k : (k[1],k[0]))).keys())[:self.n_neighbors]
+
+                    # print('near_states: ', near_states," tmp_states: ", tmp_states )
+
+                for key in near_states:
                     # print('finding pot parents: ')
                     valid, temp_cost = self.krrtstar_cost(key, self.curr_state,
                                                         v1=self.existing_states[key]['vel'], v2 = velocity)
@@ -274,7 +311,7 @@ class krrt:
 
 
                     ##### rewiring #######
-                    for key, value in self.existing_states.items():
+                    for key in near_states:
                         #print('cost parents')
                         pot_cost = 0
                         valid, temp_cost = self.krrtstar_cost( self.curr_state, key, v2 = self.existing_states[self.curr_state]['vel'], v1 = self.existing_states[key]['vel'])
@@ -293,7 +330,7 @@ class krrt:
                                 temp_curr_state = self.existing_states[prev_state]['parent']
                                 all_parents.append(temp_curr_state)
 
-                            if (pot_cost < value['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
+                            if (pot_cost < self.existing_states[key]['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
                             (self.curr_state!=key) and (self.curr_state!=cspace_obj.goal_state) and
                             (self.existing_states[self.curr_state]['parent'] != key) and
                             (key not in all_parents)):
