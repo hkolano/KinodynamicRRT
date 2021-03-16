@@ -67,7 +67,10 @@ class krrt:
         self.curr_state = None
         self.prev_state = None
         self.planner=KinoPlanner()
-        self.r = 7 # some arbitrary value
+
+        # Number of n neighbors considered
+        self.n_neighbors = 5
+        # self.r = 7 # some arbitrary value
 
 
     def rrtstar_cost(self, parent_state, new_state, v1, v2):
@@ -101,13 +104,16 @@ class krrt:
         curr_vstate=curr_vstate.tolist()
         # print("states in the cost function", par_state,curr_state,curr_vstate,par_vstate)
         ############ Add the code for cost below. You can call Hannah's cost function here
-        dummycost = self.rrtstar_cost(parent_state, new_state, v1, v2)
-        if dummycost < self.r:
-            valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
-        else:
-            valid_status = 0
-            cost = 100
+        # dummycost = self.rrtstar_cost(parent_state, new_state, v1, v2)
+        # if dummycost < self.r:
+        #     valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+        # else:
+        #     valid_status = 0
+        #     cost = 100
         #print("krrt cost = ",cost)
+
+        valid_status, cost = self.planner.get_path_torque_matlab(par_state, curr_state, par_vstate, curr_vstate, 0)
+
         ## Sample cost from rrtstar
         #cost=planner.get_path_torque_matlab([0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 2.0, 2.0, 3.0, 2.0], [0.0, 0.0, 0.0, 0.0, 0.0], [1.0, 1.0, 1.0, 1.0, 1.0], 1)
         #cost = sum(np.absolute(np.subtract(curr_state,par_state))) + sum(np.absolute(np.subtract(curr_vstate,par_vstate)))
@@ -255,7 +261,21 @@ class krrt:
                 else:
                     velocity = new_vel_state
 
-                for key, value in self.existing_states.items():
+                # Find top n nearest vertexes:
+                near_states = []
+                if len(self.existing_states)<=self.n_neighbors:
+                    near_states = list(self.existing_states.keys())
+                    print('near_states: ', near_states)
+                else:
+                    tmp_states = {}
+                    for key, value in self.existing_states.items():
+                        tmp_states[key] = self.rrtstar_cost(key, self.curr_state,
+                                                            v1=self.existing_states[key]['vel'], v2 = velocity)
+                    near_states =  list(dict(sorted(tmp_states.items(), key = lambda k : (k[1],k[0]))).keys())[:self.n_neighbors]
+
+                    print('near_states: ', near_states," tmp_states: ", tmp_states )
+
+                for key in near_states:
                     # print('finding pot parents: ')
                     valid, temp_cost = self.krrtstar_cost(key, self.curr_state,
                                                         v1=self.existing_states[key]['vel'], v2 = velocity)
@@ -274,7 +294,7 @@ class krrt:
 
 
                     ##### rewiring #######
-                    for key, value in self.existing_states.items():
+                    for key in near_states:
                         #print('cost parents')
                         pot_cost = 0
                         valid, temp_cost = self.krrtstar_cost( self.curr_state, key, v2 = self.existing_states[self.curr_state]['vel'], v1 = self.existing_states[key]['vel'])
@@ -293,7 +313,7 @@ class krrt:
                                 temp_curr_state = self.existing_states[prev_state]['parent']
                                 all_parents.append(temp_curr_state)
 
-                            if (pot_cost < value['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
+                            if (pot_cost < self.existing_states[key]['cost_tot'] and (self.existing_states[key]['parent'] != cspace_obj.start_state) and
                             (self.curr_state!=key) and (self.curr_state!=cspace_obj.goal_state) and
                             (self.existing_states[self.curr_state]['parent'] != key) and
                             (key not in all_parents)):
